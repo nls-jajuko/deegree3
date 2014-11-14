@@ -142,9 +142,14 @@ public class GmlGetFeatureHandler extends AbstractGmlRequestHandler {
         LOG.debug( "Performing GetFeature (results) request." );
 
         GMLVersion gmlVersion = options.getGmlVersion();
+        int returnMaxFeatures = options.getQueryMaxFeatures();
+        if ( request.getPresentationParams().getCount() != null
+                && ( options.getQueryMaxFeatures() < 1 || request.getPresentationParams().getCount().intValue() < options.getQueryMaxFeatures() ) ) {
+            returnMaxFeatures = request.getPresentationParams().getCount().intValue();
+        }
 
         QueryAnalyzer analyzer = new QueryAnalyzer( request.getQueries(), format.getMaster(),
-                                                    format.getMaster().getStoreManager(), options.isCheckAreaOfUse() );
+                format.getMaster().getStoreManager(), options.isCheckAreaOfUse(), returnMaxFeatures );
         Lock lock = acquireLock( request, analyzer );
 
         String schemaLocation = getSchemaLocation( request.getVersion(), analyzer.getFeatureTypes() );
@@ -239,13 +244,13 @@ public class GmlGetFeatureHandler extends AbstractGmlRequestHandler {
                 xmlStream.writeAttribute( "gml", GML3_2_NS, "id", "WFS_RESPONSE" );
             }
         }
-
+/*
         int returnMaxFeatures = options.getQueryMaxFeatures();
         if ( request.getPresentationParams().getCount() != null
              && ( options.getQueryMaxFeatures() < 1 || request.getPresentationParams().getCount().intValue() < options.getQueryMaxFeatures() ) ) {
             returnMaxFeatures = request.getPresentationParams().getCount().intValue();
         }
-
+*/
         int startIndex = 0;
         if ( request.getPresentationParams().getStartIndex() != null ) {
             startIndex = request.getPresentationParams().getStartIndex().intValue();

@@ -89,7 +89,7 @@ public class Query {
 
     // private final String featureVersion;
     //
-    // private final ICRS srsName;
+    private ICRS srsName  = null;
 
     private final SortProperty[] sortBy;
 
@@ -146,6 +146,7 @@ public class Query {
     public Query( TypeName[] typeNames, Filter filter, String featureVersion, ICRS srsName, SortProperty[] sortBy ) {
         this.typeNames = typeNames;
         this.filter = filter;
+        this.srsName = srsName;
         if ( sortBy != null ) {
             this.sortBy = sortBy;
         } else {
@@ -276,5 +277,13 @@ public class Query {
      */
     public int getMaxFeatures() {
         return maxFeatures;
+    }
+    
+    public void setMaxFeatures(int m) {
+        this.maxFeatures = m;
+    }
+
+    public ICRS getSrsName() {
+        return srsName;
     }
 }

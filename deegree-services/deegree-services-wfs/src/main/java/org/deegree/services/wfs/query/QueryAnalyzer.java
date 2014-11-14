@@ -133,10 +133,88 @@ public class QueryAnalyzer {
     private List<ProjectionClause> projections = null;
 
     private ICRS requestedCrs;
+    
+    private int requestedMaxFeatures = -1;
 
     private boolean allFtsPossible;
 
     private final boolean checkAreaOfUse;
+
+    
+    /**
+     * Creates a new {@link QueryAnalyzer}.
+     * 
+     * @param wfsQueries
+     *            queries be performed, must not be <code>null</code>
+     * @param service
+     *            {@link WfsFeatureStoreManager} to be used, must not be <code>null</code>
+     * @param checkInputDomain
+     *            true, if geometries in query constraints should be checked against validity domain of the SRS (needed
+     *            for CITE 1.1.0 compliance)
+     * @throws OWSException
+     *             if the request cannot be performed, e.g. because it queries feature types that are not served
+     */
+    public QueryAnalyzer( List<org.deegree.protocol.wfs.query.Query> wfsQueries, WebFeatureService controller,
+            WfsFeatureStoreManager service, boolean checkInputDomain, int r ) throws OWSException {
+                    requestedMaxFeatures = r;
+
+        this.controller = controller;
+        this.service = service;
+        this.checkAreaOfUse = checkInputDomain;
+
+        // generate validated feature store queries
+        if ( wfsQueries.isEmpty() ) {
+            // TODO perform the check here?
+            String msg = "Either the typeName parameter must be present or the query must provide feature ids.";
+            throw new OWSException( msg, INVALID_PARAMETER_VALUE, "typeName" );
+        }
+
+        List<Pair<AdHocQuery, org.deegree.protocol.wfs.query.Query>> adHocQueries = convertStoredQueries( wfsQueries );
+
+        Query[] queries = new Query[adHocQueries.size()];
+        for ( int i = 0; i < adHocQueries.size(); i++ ) {
+            AdHocQuery wfsQuery = adHocQueries.get( i ).first;
+            Query query = validateQuery( wfsQuery );
+            queries[i] = query;
+
+            // yes, use the original WFS query (not necessarily adHoc)
+            queryToWFSQuery.put( query, adHocQueries.get( i ).second );
+
+            // TODO what about queries with different SRS?
+            if ( wfsQuery.getSrsName() != null ) {
+                requestedCrs = wfsQuery.getSrsName();
+            } else {
+                requestedCrs = controller.getDefaultQueryCrs();
+            }
+
+            // TODO cope with more queries than one
+            if ( wfsQuery.getProjectionClauses() != null ) {
+                this.projections = Arrays.asList( wfsQuery.getProjectionClauses() );
+            }
+        }
+
+        // associate queries with feature stores
+        for ( Query query : queries ) {
+            if ( query.getTypeNames().length == 0 ) {
+                for ( FeatureStore fs : service.getStores() ) {
+                    List<Query> fsQueries = fsToQueries.get( fs );
+                    if ( fsQueries == null ) {
+                        fsQueries = new ArrayList<Query>();
+                        fsToQueries.put( fs, fsQueries );
+                    }
+                    fsQueries.add( query );
+                }
+            } else {
+                FeatureStore fs = service.getStore( query.getTypeNames()[0].getFeatureTypeName() );
+                List<Query> fsQueries = fsToQueries.get( fs );
+                if ( fsQueries == null ) {
+                    fsQueries = new ArrayList<Query>();
+                    fsToQueries.put( fs, fsQueries );
+                }
+                fsQueries.add( query );
+            }
+        }
+    }
 
     /**
      * Creates a new {@link QueryAnalyzer}.
@@ -458,8 +536,10 @@ public class QueryAnalyzer {
             Filters.setDefaultCRS( filter, controller.getDefaultQueryCrs() );
         }
 
-        return new Query( typeNames, filter, ( (AdHocQuery) wfsQuery ).getFeatureVersion(),
-                          ( (AdHocQuery) wfsQuery ).getSrsName(), sortProps );
+        Query _query = new Query( typeNames, filter, ( (AdHocQuery) wfsQuery ).getFeatureVersion(),
+                ( (AdHocQuery) wfsQuery ).getSrsName(), sortProps );
+        _query.setMaxFeatures( requestedMaxFeatures );
+        return _query;
     }
 
     private void validatePropertyName( ValueReference propName, TypeName[] typeNames )
@@ -640,5 +720,9 @@ public class QueryAnalyzer {
         }
         GeometryTransformer transformer = new GeometryTransformer( targetCrs );
         return transformer.transform( bbox );
+    }
+    
+    public void setRequestedMaxFeatures(int m) { 
+        requestedMaxFeatures = m; 
     }
 }
