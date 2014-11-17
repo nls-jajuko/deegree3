@@ -74,6 +74,7 @@ import org.deegree.commons.tom.ResolveParams;
 import org.deegree.commons.tom.datetime.DateTime;
 import org.deegree.commons.tom.ows.Version;
 import org.deegree.commons.utils.kvp.InvalidParameterValueException;
+import org.deegree.cs.coordinatesystems.ICRS;
 import org.deegree.cs.exceptions.TransformationException;
 import org.deegree.cs.exceptions.UnknownCRSException;
 import org.deegree.feature.Feature;
@@ -436,27 +437,84 @@ public class GmlGetFeatureHandler extends AbstractGmlRequestHandler {
         for ( Map.Entry<FeatureStore, List<Query>> fsToQueries : analyzer.getQueries().entrySet() ) {
             FeatureStore fs = fsToQueries.getKey();
             Query[] queries = fsToQueries.getValue().toArray( new Query[fsToQueries.getValue().size()] );
-            FeatureInputStream rs = fs.query( queries );
-            try {
-                for ( Feature member : rs ) {
-                    if ( lock != null && !lock.isLocked( member.getId() ) ) {
-                        continue;
+            
+            
+            
+            boolean srsAllIsNull = true;
+            boolean srsAllIsSame = true;
+            ICRS crs = null;
+            for( Query query : queries ) {
+                ICRS queryCrs = query.getSrsName();
+                if( crs == null ) {
+                    crs = queryCrs;
+                }
+                if( queryCrs != null ) {
+                    srsAllIsNull = false;
+                    
+                    if( crs != null && queryCrs != null ) {
+                        srsAllIsSame = srsAllIsSame && queryCrs.equals(crs);
                     }
-                    if ( featuresAdded == maxFeatures ) {
-                        // limit the number of features written to maxfeatures
-                        break;
+                } 
+                
+            }
+            
+            if( srsAllIsNull || srsAllIsSame ) {
+                LOG.debug( "Using Default fs.query(queries) - All Query CRS are NULL or EQUAL" );
+                FeatureInputStream rs = fs.query( queries );
+                try {
+                     for ( Feature member : rs ) {
+                        if ( lock != null && !lock.isLocked( member.getId() ) ) {
+                            continue;
+                        }
+                        if ( featuresAdded == maxFeatures ) {
+                            // limit the number of features written to maxfeatures
+                            break;
+                        }
+                        if ( featuresSkipped < startIndex ) {
+                            featuresSkipped++;
+                        } else {
+                            writeMemberFeature( member, gmlStream, xmlStream, resolveState, featureMemberEl );
+                            featuresAdded++;
+                        }
                     }
-                    if ( featuresSkipped < startIndex ) {
-                        featuresSkipped++;
+                } finally {
+                    LOG.debug( "Closing FeatureResultSet (stream)" );
+                    rs.close();
+                }
+            } else {
+                LOG.debug( "Using fs.query(query) - All Query CRS are NOT EQUAL" );
+                
+                for( Query query: queries ) {
+                    if( query.getSrsName() != null) {
+                        gmlStream.setOutputCrs(query.getSrsName());
                     } else {
-                        writeMemberFeature( member, gmlStream, xmlStream, resolveState, featureMemberEl );
-                        featuresAdded++;
+                        gmlStream.setOutputCrs(analyzer.getRequestedCRS());
+                    }
+                    FeatureInputStream rs = fs.query( query );
+                    try {
+                         for ( Feature member : rs ) {
+                            if ( lock != null && !lock.isLocked( member.getId() ) ) {
+                                continue;
+                            }
+                            if ( featuresAdded == maxFeatures ) {
+                                // limit the number of features written to maxfeatures
+                                break;
+                            }
+                            if ( featuresSkipped < startIndex ) {
+                                featuresSkipped++;
+                            } else {
+                                writeMemberFeature( member, gmlStream, xmlStream, resolveState, featureMemberEl );
+                                featuresAdded++;
+                            }
+                        }
+                    } finally {
+                        LOG.debug( "Closing FeatureResultSet (stream)" );
+                        rs.close();
                     }
                 }
-            } finally {
-                LOG.debug( "Closing FeatureResultSet (stream)" );
-                rs.close();
-            }
+                
+                
+            } 
         }
     }
 

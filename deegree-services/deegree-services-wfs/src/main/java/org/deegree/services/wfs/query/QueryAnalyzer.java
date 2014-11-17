@@ -183,14 +183,19 @@ public class QueryAnalyzer {
             // TODO what about queries with different SRS?
             if ( wfsQuery.getSrsName() != null ) {
                 requestedCrs = wfsQuery.getSrsName();
+                query.setSrsName(requestedCrs);
             } else {
                 requestedCrs = controller.getDefaultQueryCrs();
+                
             }
 
             // TODO cope with more queries than one
             if ( wfsQuery.getProjectionClauses() != null ) {
-                this.projections = Arrays.asList( wfsQuery.getProjectionClauses() );
-            }
+                List<ProjectionClause> queryProjections = Arrays.asList( wfsQuery.getProjectionClauses() );
+                this.projections = queryProjections;
+                
+                query.setProjections(queryProjections);
+            } 
         }
 
         // associate queries with feature stores
@@ -257,13 +262,18 @@ public class QueryAnalyzer {
             // TODO what about queries with different SRS?
             if ( wfsQuery.getSrsName() != null ) {
                 requestedCrs = wfsQuery.getSrsName();
+                query.setSrsName(requestedCrs);
             } else {
                 requestedCrs = controller.getDefaultQueryCrs();
+                
             }
 
             // TODO cope with more queries than one
             if ( wfsQuery.getProjectionClauses() != null ) {
-                this.projections = Arrays.asList( wfsQuery.getProjectionClauses() );
+                List<ProjectionClause> queryProjections = Arrays.asList( wfsQuery.getProjectionClauses() );
+                this.projections = queryProjections;
+                
+                query.setProjections(queryProjections);
             }
         }
 

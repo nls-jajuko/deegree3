@@ -97,7 +97,7 @@ public class Query {
 
     private int maxFeatures = -1;
 
-    private final List<ProjectionClause> projections;
+    private List<ProjectionClause> projections;
 
     /**
      * Creates a new {@link Query} instance.
@@ -271,6 +271,11 @@ public class Query {
     public List<ProjectionClause> getProjections() {
         return projections;
     }
+    
+
+    public void setProjections(List<ProjectionClause> projections) {
+        this.projections = projections;
+    }
 
     /**
      * @return -1, if no limit has been set
@@ -286,4 +291,10 @@ public class Query {
     public ICRS getSrsName() {
         return srsName;
     }
+
+    public void setSrsName(ICRS srsName) {
+        this.srsName = srsName;
+    }
+    
+    
 }
