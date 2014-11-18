@@ -439,7 +439,7 @@ public class GmlGetFeatureHandler extends AbstractGmlRequestHandler {
             Query[] queries = fsToQueries.getValue().toArray( new Query[fsToQueries.getValue().size()] );
             
             
-            
+/*            boolean noQueryProjs = true;
             boolean srsAllIsNull = true;
             boolean srsAllIsSame = true;
             ICRS crs = null;
@@ -456,9 +456,13 @@ public class GmlGetFeatureHandler extends AbstractGmlRequestHandler {
                     }
                 } 
                 
+                if( query.getProjections()!=null && query.getProjections().size() >0) {
+                    noQueryProjs = false;
+                }
+                
             }
             
-            if( srsAllIsNull || srsAllIsSame ) {
+            if( noQueryProjs && (srsAllIsNull || srsAllIsSame )) {
                 LOG.debug( "Using Default fs.query(queries) - All Query CRS are NULL or EQUAL" );
                 FeatureInputStream rs = fs.query( queries );
                 try {
@@ -482,7 +486,8 @@ public class GmlGetFeatureHandler extends AbstractGmlRequestHandler {
                     rs.close();
                 }
             } else {
-                LOG.debug( "Using fs.query(query) - All Query CRS are NOT EQUAL" );
+            */
+                LOG.debug( "Using fs.query(query) - SEPARATE QUERIES to support Query specific SRS and Projection clauses" );
                 
                 for( Query query: queries ) {
                     if( query.getSrsName() != null) {
@@ -490,6 +495,9 @@ public class GmlGetFeatureHandler extends AbstractGmlRequestHandler {
                     } else {
                         gmlStream.setOutputCrs(analyzer.getRequestedCRS());
                     }
+
+                    gmlStream.setProjections(query.getProjections());
+                    
                     FeatureInputStream rs = fs.query( query );
                     try {
                          for ( Feature member : rs ) {
@@ -514,7 +522,7 @@ public class GmlGetFeatureHandler extends AbstractGmlRequestHandler {
                 }
                 
                 
-            } 
+            //} 
         }
     }
 

@@ -237,67 +237,7 @@ public class QueryAnalyzer {
     public QueryAnalyzer( List<org.deegree.protocol.wfs.query.Query> wfsQueries, WebFeatureService controller,
                           WfsFeatureStoreManager service, boolean checkInputDomain ) throws OWSException {
 
-        this.controller = controller;
-        this.service = service;
-        this.checkAreaOfUse = checkInputDomain;
-
-        // generate validated feature store queries
-        if ( wfsQueries.isEmpty() ) {
-            // TODO perform the check here?
-            String msg = "Either the typeName parameter must be present or the query must provide feature ids.";
-            throw new OWSException( msg, INVALID_PARAMETER_VALUE, "typeName" );
-        }
-
-        List<Pair<AdHocQuery, org.deegree.protocol.wfs.query.Query>> adHocQueries = convertStoredQueries( wfsQueries );
-
-        Query[] queries = new Query[adHocQueries.size()];
-        for ( int i = 0; i < adHocQueries.size(); i++ ) {
-            AdHocQuery wfsQuery = adHocQueries.get( i ).first;
-            Query query = validateQuery( wfsQuery );
-            queries[i] = query;
-
-            // yes, use the original WFS query (not necessarily adHoc)
-            queryToWFSQuery.put( query, adHocQueries.get( i ).second );
-
-            // TODO what about queries with different SRS?
-            if ( wfsQuery.getSrsName() != null ) {
-                requestedCrs = wfsQuery.getSrsName();
-                query.setSrsName(requestedCrs);
-            } else {
-                requestedCrs = controller.getDefaultQueryCrs();
-                
-            }
-
-            // TODO cope with more queries than one
-            if ( wfsQuery.getProjectionClauses() != null ) {
-                List<ProjectionClause> queryProjections = Arrays.asList( wfsQuery.getProjectionClauses() );
-                this.projections = queryProjections;
-                
-                query.setProjections(queryProjections);
-            }
-        }
-
-        // associate queries with feature stores
-        for ( Query query : queries ) {
-            if ( query.getTypeNames().length == 0 ) {
-                for ( FeatureStore fs : service.getStores() ) {
-                    List<Query> fsQueries = fsToQueries.get( fs );
-                    if ( fsQueries == null ) {
-                        fsQueries = new ArrayList<Query>();
-                        fsToQueries.put( fs, fsQueries );
-                    }
-                    fsQueries.add( query );
-                }
-            } else {
-                FeatureStore fs = service.getStore( query.getTypeNames()[0].getFeatureTypeName() );
-                List<Query> fsQueries = fsToQueries.get( fs );
-                if ( fsQueries == null ) {
-                    fsQueries = new ArrayList<Query>();
-                    fsToQueries.put( fs, fsQueries );
-                }
-                fsQueries.add( query );
-            }
-        }
+        this(wfsQueries,controller,service,checkInputDomain,-1);
     }
 
     private List<Pair<AdHocQuery, org.deegree.protocol.wfs.query.Query>> convertTemplateStoredQuery( StoredQuery query )

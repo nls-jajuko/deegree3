@@ -883,13 +883,34 @@ public class GMLFeatureWriter extends AbstractGMLObjectWriter {
             int match = 0;
             int stepIndex = 0;
             int contextIndex = 1;   // DITCH ROOT ELEMENT
+            
+            QName rootContext = contextPath.get(0);
+            DefaultNameStep rootStep = steps.get(stepIndex);
+            
+            /* Tolerate erroneous XPaths which start with Feature qname */
+            String localName = rootStep.getLocalName();
+            String prefix = rootStep.getPrefix();
+            if (prefix == null) {
+                if( localName.equals(rootContext.getLocalPart() )) {
+                    contextIndex = 0;
+                }
+            } else {
+                String ns = nsContext.getNamespaceURI(prefix);
+
+                QName ref = new QName(ns, localName, prefix);
+
+                if (ref.equals(rootContext)) {
+                    contextIndex = 0;
+                }
+            }
+            
         
             for (; stepIndex <= stepsLast && contextIndex <= contextLast; stepIndex++, contextIndex++) {
                 DefaultNameStep step = steps.get(stepIndex);
                 QName currContext = contextPath.get(contextIndex); 
                 
-                String localName = step.getLocalName();
-                String prefix = step.getPrefix();
+                localName = step.getLocalName();
+                prefix = step.getPrefix();
                 if (prefix == null) {
                     if( !localName.equals(currContext.getLocalPart() )) {
                         match= -1;
