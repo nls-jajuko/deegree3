@@ -1,5 +1,5 @@
 This fork adds support to following
-- XPath selection of WFS Properties in response based on PropertyName elements of Query (XPath Projection Clauses)
+- XPath (simple) selection of WFS Properties in response based on PropertyName elements of Query (XPath Projection Clauses)
 - Support for per Query srsName 
 - Support for per Query XPath Projection Clauses 
 - Support for per Query srsName in multiquery requests with resetGeometryWriter()
