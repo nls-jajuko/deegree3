@@ -492,8 +492,10 @@ public class GmlGetFeatureHandler extends AbstractGmlRequestHandler {
                 for( Query query: queries ) {
                     if( query.getSrsName() != null) {
                         gmlStream.setOutputCrs(query.getSrsName());
+                        gmlStream.resetGeometryWriter();
                     } else {
                         gmlStream.setOutputCrs(analyzer.getRequestedCRS());
+                        gmlStream.resetGeometryWriter();
                     }
 
                     gmlStream.setProjections(query.getProjections());

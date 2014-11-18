@@ -390,6 +390,11 @@ public class GMLStreamWriter {
         }
         return geometryWriter;
     }
+    
+    public GMLGeometryWriter resetGeometryWriter() {
+        geometryWriter = null;
+        return getGeometryWriter();
+    }
 
     private GMLDictionaryWriter getDictionaryWriter() {
         if ( dictionaryWriter == null ) {
