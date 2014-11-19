@@ -40,6 +40,7 @@ import static org.deegree.commons.ows.exception.OWSException.NO_APPLICABLE_CODE;
 import static org.deegree.commons.ows.exception.OWSException.OPERATION_NOT_SUPPORTED;
 import static org.deegree.commons.utils.StringUtils.REMOVE_DOUBLE_FIELDS;
 import static org.deegree.commons.utils.StringUtils.REMOVE_EMPTY_FIELDS;
+import static org.deegree.commons.xml.CommonNamespaces.XSINS;
 import static org.deegree.gml.GMLVersion.GML_2;
 import static org.deegree.gml.GMLVersion.GML_30;
 import static org.deegree.gml.GMLVersion.GML_31;
@@ -899,13 +900,51 @@ public class WebFeatureService extends AbstractOWS {
         sendException( null, serializer, e, response );
     }
 
+    
+    public static class OWS100_110_ExceptionReportSerializer extends XMLExceptionSerializer {
+
+        private static final String OWS_NS = "http://www.opengis.net/ows";
+
+        private static final String OWS_SCHEMA = "http://schemas.opengis.net/ows/1.0.0/owsExceptionReport.xsd";
+
+        @Override
+        public void serializeExceptionToXML( XMLStreamWriter writer, OWSException ex )
+                                throws XMLStreamException {
+            if ( ex == null || writer == null ) {
+                return;
+            }
+            writer.writeStartElement( "ows", "ExceptionReport", OWS_NS );
+            writer.writeNamespace( "ows", OWS_NS );
+            writer.writeNamespace( "xsi", XSINS );
+            writer.writeAttribute( XSINS, "schemaLocation", OWS_NS + " " + OWS_SCHEMA );
+            writer.writeAttribute( "version", "1.1.0" );
+            writer.writeStartElement( OWS_NS, "Exception" );
+            writer.writeAttribute( "exceptionCode", ex.getExceptionCode() );
+            if ( ex.getLocator() != null && !"".equals( ex.getLocator().trim() ) ) {
+                writer.writeAttribute( "locator", ex.getLocator() );
+            }
+            writer.writeStartElement( OWS_NS, "ExceptionText" );
+            writer.writeCharacters( ex.getMessage() != null ? ex.getMessage() : "not available" );
+            writer.writeEndElement();
+            writer.writeEndElement(); // Exception
+            writer.writeEndElement(); // ExceptionReport
+        }
+    }
+    
     @Override
     public XMLExceptionSerializer getExceptionSerializer( Version requestVersion ) {
         XMLExceptionSerializer serializer = getDefaultExceptionSerializer();
         if ( VERSION_100.equals( requestVersion ) ) {
             serializer = new PreOWSExceptionReportSerializer( "application/vnd.ogc.se_xml" );
         } else if ( VERSION_110.equals( requestVersion ) ) {
-            serializer = new OWS100ExceptionReportSerializer();
+            /* fixed as per spec */
+            /* WFS 1.1.0 An <ExceptionReport> element can contain one or more WFS processing exceptions 
+specified using the <Exception> element. The mandatory version attribute is used to 
+indicate the version of the service exception report schema. For this version of the 
+specification, this value is fixed at 1.1.0. The optional language attribute may be used to 
+indicate the language used. The code list for the language parameter is defined in IETF 
+RFC 1766. */
+            serializer = new OWS100_110_ExceptionReportSerializer() ;
         } else if ( VERSION_200.equals( requestVersion ) ) {
             serializer = new OWS110ExceptionReportSerializer( VERSION_200 );
         }
