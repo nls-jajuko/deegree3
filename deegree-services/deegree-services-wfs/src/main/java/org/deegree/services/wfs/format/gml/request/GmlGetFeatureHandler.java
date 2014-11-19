@@ -600,6 +600,7 @@ public class GmlGetFeatureHandler extends AbstractGmlRequestHandler {
                 }
 
                 gmlStream.setProjections(query.getProjections());
+                gmlStream.resetFeatureWriter();
 
                 FeatureInputStream rs = fs.query(query);
                 try {

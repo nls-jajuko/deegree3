@@ -372,6 +372,11 @@ public class GMLStreamWriter {
         }
         return featureWriter;
     }
+    
+    public GMLFeatureWriter resetFeatureWriter() {
+        featureWriter = null;
+        return getFeatureWriter();
+    }
 
     public GMLGeometryWriter getGeometryWriter() {
         if ( geometryWriter == null ) {
