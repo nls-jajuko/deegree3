@@ -91,6 +91,8 @@ import org.deegree.filter.FilterEvaluationException;
 import org.deegree.filter.projection.ProjectionClause;
 import org.deegree.filter.projection.PropertyName;
 import org.deegree.geometry.Envelope;
+import org.deegree.geometry.io.CoordinateFormatter;
+import org.deegree.geometry.io.DecimalCoordinateFormatter;
 import org.deegree.gml.GMLStreamWriter;
 import org.deegree.gml.GMLVersion;
 import org.deegree.gml.reference.GmlXlinkOptions;
@@ -132,10 +134,9 @@ public class GmlGetFeatureHandler extends AbstractGmlRequestHandler {
     public GmlGetFeatureHandler(GmlFormat format) {
         super(format);
     }
-    
-    
+
     protected class FeatureCollectionWriter {
-        
+
         private XMLStreamWriter xmlStream;
         private QName responseContainerEl;
         private GetFeature request;
@@ -144,19 +145,22 @@ public class GmlGetFeatureHandler extends AbstractGmlRequestHandler {
         private QName memberElementName;
         private GMLVersion gmlVersion;
         boolean written = false;
-        protected FeatureCollectionWriter(XMLStreamWriter xmlStream, GMLVersion gmlVersion, QName responseContainerEl, QName memberElementName, GetFeature request, Lock lock, boolean isGetFeatureById) {
-           this.xmlStream = xmlStream;
-           this.gmlVersion = gmlVersion;
-           this.responseContainerEl = responseContainerEl;
-           this.memberElementName = memberElementName;
-           this.request = request;
-           this.lock = lock;
-           this.isGetFeatureById = isGetFeatureById;
+
+        protected FeatureCollectionWriter(XMLStreamWriter xmlStream,
+                GMLVersion gmlVersion, QName responseContainerEl,
+                QName memberElementName, GetFeature request, Lock lock,
+                boolean isGetFeatureById) {
+            this.xmlStream = xmlStream;
+            this.gmlVersion = gmlVersion;
+            this.responseContainerEl = responseContainerEl;
+            this.memberElementName = memberElementName;
+            this.request = request;
+            this.lock = lock;
+            this.isGetFeatureById = isGetFeatureById;
         }
-        
-        
+
         protected void writeBeginIfNeedBe() throws XMLStreamException {
-            if( written ) {
+            if (written) {
                 return;
             }
             // open "wfs:FeatureCollection" element
@@ -222,9 +226,9 @@ public class GmlGetFeatureHandler extends AbstractGmlRequestHandler {
                             "WFS_RESPONSE");
                 }
             }
-            
+
             if (request.getVersion().equals(VERSION_200)) {
-                
+
                 xmlStream.writeAttribute("numberMatched", "unknown");
                 xmlStream.writeAttribute("numberReturned", "0");
                 xmlStream
@@ -232,7 +236,7 @@ public class GmlGetFeatureHandler extends AbstractGmlRequestHandler {
             }
 
             if (gmlVersion == GML_2) {
-                
+
                 // "gml:boundedBy" is necessary for GML 2 schema compliance
                 xmlStream.writeStartElement("gml", "boundedBy", GMLNS);
                 xmlStream.writeStartElement(GMLNS, "null");
@@ -241,11 +245,11 @@ public class GmlGetFeatureHandler extends AbstractGmlRequestHandler {
                 xmlStream.writeEndElement();
             }
 
-            
             written = true;
         }
+
         protected void writeEnd() throws XMLStreamException {
-            if( !written ) {
+            if (!written) {
                 return;
             }
             // close container element
@@ -253,7 +257,6 @@ public class GmlGetFeatureHandler extends AbstractGmlRequestHandler {
 
         }
     }
-    
 
     /**
      * Performs the given {@link GetFeature} request.
@@ -339,21 +342,18 @@ public class GmlGetFeatureHandler extends AbstractGmlRequestHandler {
 
         boolean isGetFeatureById = isGetFeatureByIdRequest(request);
 
-     
-        featureCollectionWriter = 
-                new FeatureCollectionWriter(xmlStream, gmlVersion, responseContainerEl, memberElementName, request, lock, isGetFeatureById);
-                                
-        
+        featureCollectionWriter = new FeatureCollectionWriter(xmlStream,
+                gmlVersion, responseContainerEl, memberElementName, request,
+                lock, isGetFeatureById);
+
         GmlXlinkOptions resolveOptions = new GmlXlinkOptions(
                 request.getResolveParams());
         WfsXlinkStrategy additionalObjects = new WfsXlinkStrategy(
-                (BufferableXMLStreamWriter) xmlStream,
-                localReferencesPossible, xLinkTemplate, resolveOptions);
-        GMLStreamWriter gmlStream = createGMLStreamWriter(gmlVersion,
-                xmlStream);
+                (BufferableXMLStreamWriter) xmlStream, localReferencesPossible,
+                xLinkTemplate, resolveOptions);
+        GMLStreamWriter gmlStream = createGMLStreamWriter(gmlVersion, xmlStream);
         try {
 
-   
             /*
              * int returnMaxFeatures = options.getQueryMaxFeatures(); if (
              * request.getPresentationParams().getCount() != null && (
@@ -368,7 +368,6 @@ public class GmlGetFeatureHandler extends AbstractGmlRequestHandler {
                         .intValue();
             }
 
-           
             gmlStream.setProjections(analyzer.getProjections());
             gmlStream.setOutputCrs(analyzer.getRequestedCRS());
             gmlStream.setCoordinateFormatter(options.getFormatter());
@@ -379,8 +378,7 @@ public class GmlGetFeatureHandler extends AbstractGmlRequestHandler {
             prefixToNs.putAll(getFeatureTypeNsPrefixes(analyzer
                     .getFeatureTypes()));
             gmlStream.setNamespaceBindings(prefixToNs);
-            
-           
+
             gmlStream.setReferenceResolveStrategy(additionalObjects);
 
             if (isGetFeatureById) {
@@ -392,11 +390,12 @@ public class GmlGetFeatureHandler extends AbstractGmlRequestHandler {
                         analyzer, gmlVersion, returnMaxFeatures, startIndex,
                         memberElementName, lock);
             } else {
-                // featureCollectionWriter.writeBeginIfNeedBe(); -> POSTPONED TO ENABLE TIDY OUTPUT FOR FILTEREVALUATION EXCEPTIONS
+                // featureCollectionWriter.writeBeginIfNeedBe(); -> POSTPONED TO
+                // ENABLE TIDY OUTPUT FOR FILTEREVALUATION EXCEPTIONS
                 writeFeatureMembersStream(request.getVersion(), gmlStream,
                         analyzer, gmlVersion, returnMaxFeatures, startIndex,
                         memberElementName, lock);
-                
+
                 // emptyresult handling
                 featureCollectionWriter.writeBeginIfNeedBe();
             }
@@ -550,7 +549,7 @@ public class GmlGetFeatureHandler extends AbstractGmlRequestHandler {
             FactoryConfigurationError {
 
         XMLStreamWriter xmlStream = gmlStream.getXMLStream();
-       
+
         // retrieve and write result features
         int featuresAdded = 0;
         int featuresSkipped = 0;
@@ -591,11 +590,29 @@ public class GmlGetFeatureHandler extends AbstractGmlRequestHandler {
             LOG.debug("Using fs.query(query) - SEPARATE QUERIES to support Query specific SRS and Projection clauses");
 
             for (Query query : queries) {
+
+                DecimalCoordinateFormatter formatter = null;
+
                 if (query.getSrsName() != null) {
-                    gmlStream.setOutputCrs(query.getSrsName());
+                    ICRS crs = query.getSrsName();
+                    gmlStream.setOutputCrs(crs);
+
+                    int places = crs.getCode().getCode().indexOf("4258") != -1 ? 8
+                            : 3;
+                    formatter = new DecimalCoordinateFormatter(places);
+
+                    gmlStream.setCoordinateFormatter(formatter);
                     gmlStream.resetGeometryWriter();
+
                 } else {
-                    gmlStream.setOutputCrs(analyzer.getRequestedCRS());
+                    ICRS crs = analyzer.getRequestedCRS();
+                    gmlStream.setOutputCrs(crs);
+
+                    int places = crs.getCode().getCode().indexOf("4258") != -1 ? 8
+                            : 3;
+                    formatter = new DecimalCoordinateFormatter(places);
+
+                    gmlStream.setCoordinateFormatter(formatter);
                     gmlStream.resetGeometryWriter();
                 }
 
@@ -674,9 +691,8 @@ public class GmlGetFeatureHandler extends AbstractGmlRequestHandler {
             }
         }
 
-        
         XMLStreamWriter xmlStream = gmlStream.getXMLStream();
-        
+
         if (wfsVersion.equals(VERSION_200)) {
             xmlStream.writeAttribute("numberMatched", "" + allFeatures.size());
             xmlStream.writeAttribute("numberReturned", "" + allFeatures.size());
