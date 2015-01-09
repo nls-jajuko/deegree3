@@ -42,6 +42,7 @@ import static org.deegree.commons.ows.exception.OWSException.OPERATION_PROCESSIN
 import static org.deegree.commons.tom.datetime.ISO8601Converter.formatDateTime;
 import static org.deegree.commons.xml.CommonNamespaces.GML3_2_NS;
 import static org.deegree.commons.xml.CommonNamespaces.GMLNS;
+import static org.deegree.commons.xml.CommonNamespaces.XSINS;
 import static org.deegree.commons.xml.stax.XMLStreamUtils.writeNamespaceIfNotBound;
 import static org.deegree.gml.GMLOutputFactory.createGMLStreamWriter;
 import static org.deegree.gml.GMLVersion.GML_2;
@@ -99,6 +100,7 @@ import org.deegree.gml.reference.GmlXlinkOptions;
 import org.deegree.protocol.wfs.getfeature.GetFeature;
 import org.deegree.protocol.wfs.getfeaturewithlock.GetFeatureWithLock;
 import org.deegree.protocol.wfs.query.StoredQuery;
+import org.deegree.services.controller.exception.serializer.XMLExceptionSerializer;
 import org.deegree.services.controller.utils.HttpResponseBuffer;
 import org.deegree.services.i18n.Messages;
 import org.deegree.services.wfs.WebFeatureService;
@@ -134,6 +136,32 @@ public class GmlGetFeatureHandler extends AbstractGmlRequestHandler {
     public GmlGetFeatureHandler(GmlFormat format) {
         super(format);
     }
+    
+    public static class OWS100_110_ExceptionReportSerializer {
+
+        private static final String OWS_NS = "http://www.opengis.net/ows";
+
+        private static final String OWS_SCHEMA = "http://schemas.opengis.net/ows/1.0.0/owsExceptionReport.xsd";
+
+        public void serializeExceptionToXML( XMLStreamWriter writer, Throwable ex )
+                                throws XMLStreamException {
+            if ( ex == null || writer == null ) {
+                return;
+            }
+            writer.writeStartElement( "ows", "ExceptionReport", OWS_NS );
+            writer.writeNamespace( "ows", OWS_NS );
+            writer.writeNamespace( "xsi", XSINS );
+            writer.writeAttribute( XSINS, "schemaLocation", OWS_NS + " " + OWS_SCHEMA );
+            writer.writeAttribute( "version", "1.1.0" );
+            writer.writeStartElement( OWS_NS, "Exception" );
+            writer.writeAttribute( "exceptionCode", "NoApplicableCode" );         
+            writer.writeStartElement( OWS_NS, "ExceptionText" );
+            writer.writeCharacters( ex.getMessage() != null ? ex.getMessage() : "not available" );
+            writer.writeEndElement();
+            writer.writeEndElement(); // Exception
+            writer.writeEndElement(); // ExceptionReport
+        }
+    }
 
     protected class FeatureCollectionWriter {
 
@@ -145,6 +173,17 @@ public class GmlGetFeatureHandler extends AbstractGmlRequestHandler {
         private QName memberElementName;
         private GMLVersion gmlVersion;
         boolean written = false;
+        
+        
+
+        public boolean isWritten() {
+            return written;
+        }
+        
+        protected void serializeStreamException(Throwable e) throws XMLStreamException {
+            OWS100_110_ExceptionReportSerializer exser = new OWS100_110_ExceptionReportSerializer();
+            exser.serializeExceptionToXML(xmlStream, e);
+        }
 
         protected FeatureCollectionWriter(XMLStreamWriter xmlStream,
                 GMLVersion gmlVersion, QName responseContainerEl,
@@ -257,6 +296,10 @@ public class GmlGetFeatureHandler extends AbstractGmlRequestHandler {
 
         }
     }
+    
+    
+    
+    
 
     /**
      * Performs the given {@link GetFeature} request.
@@ -399,7 +442,19 @@ public class GmlGetFeatureHandler extends AbstractGmlRequestHandler {
                 // emptyresult handling
                 featureCollectionWriter.writeBeginIfNeedBe();
             }
-
+        } catch ( FeatureStoreException fex ) {
+            if( featureCollectionWriter.isWritten() ) {
+                featureCollectionWriter.serializeStreamException(fex);
+            } else {
+                throw fex;
+            }
+            
+        } catch ( FilterEvaluationException fex ) {
+            if( featureCollectionWriter.isWritten() ) {
+                featureCollectionWriter.serializeStreamException(fex);
+            } else {
+                throw fex;
+            }
         } finally {
             if (!isGetFeatureById) {
                 if (!additionalObjects.getAdditionalRefs().isEmpty()) {
@@ -420,8 +475,9 @@ public class GmlGetFeatureHandler extends AbstractGmlRequestHandler {
                     }
                 }
 
-                featureCollectionWriter.writeEnd();
+               
             }
+            featureCollectionWriter.writeEnd();
         }
         xmlStream.flush();
 
@@ -536,8 +592,8 @@ public class GmlGetFeatureHandler extends AbstractGmlRequestHandler {
         }
 
         // close "wfs:FeatureCollection"
-        xmlStream.writeEndElement();
-        xmlStream.flush();
+        //xmlStream.writeEndElement();
+        //xmlStream.flush();
     }
 
     private void writeFeatureMembersStream(Version wfsVersion,
