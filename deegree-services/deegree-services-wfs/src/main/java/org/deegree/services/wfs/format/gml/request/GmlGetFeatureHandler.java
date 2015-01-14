@@ -592,8 +592,8 @@ public class GmlGetFeatureHandler extends AbstractGmlRequestHandler {
         }
 
         // close "wfs:FeatureCollection"
-        //xmlStream.writeEndElement();
-        //xmlStream.flush();
+        xmlStream.writeEndElement();
+        xmlStream.flush();
     }
 
     private void writeFeatureMembersStream(Version wfsVersion,
