@@ -59,6 +59,7 @@ import static org.deegree.services.wfs.query.StoredQueryHandler.GET_FEATURE_BY_I
 
 import java.io.IOException;
 import java.math.BigInteger;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -74,6 +75,7 @@ import org.apache.xml.serialize.OutputFormat;
 import org.deegree.commons.ows.exception.OWSException;
 import org.deegree.commons.tom.ResolveParams;
 import org.deegree.commons.tom.datetime.DateTime;
+import org.deegree.commons.tom.datetime.ISO8601Converter;
 import org.deegree.commons.tom.ows.Version;
 import org.deegree.commons.utils.kvp.InvalidParameterValueException;
 import org.deegree.cs.coordinatesystems.ICRS;
@@ -125,7 +127,6 @@ public class GmlGetFeatureHandler extends AbstractGmlRequestHandler {
 
     private static final Logger LOG = LoggerFactory
             .getLogger(GmlGetFeatureHandler.class);
-    private FeatureCollectionWriter featureCollectionWriter;
 
     /**
      * Creates a new {@link GmlGetFeatureHandler} instance.
@@ -136,34 +137,36 @@ public class GmlGetFeatureHandler extends AbstractGmlRequestHandler {
     public GmlGetFeatureHandler(GmlFormat format) {
         super(format);
     }
-    
+
     public static class OWS100_110_ExceptionReportSerializer {
 
         private static final String OWS_NS = "http://www.opengis.net/ows";
 
         private static final String OWS_SCHEMA = "http://schemas.opengis.net/ows/1.0.0/owsExceptionReport.xsd";
 
-        public void serializeExceptionToXML( XMLStreamWriter writer, Throwable ex )
-                                throws XMLStreamException {
-            if ( ex == null || writer == null ) {
+        public void serializeExceptionToXML(XMLStreamWriter writer, Throwable ex)
+                throws XMLStreamException {
+            if (ex == null || writer == null) {
                 return;
             }
-            writer.writeStartElement( "ows", "ExceptionReport", OWS_NS );
-            writer.writeNamespace( "ows", OWS_NS );
-            writer.writeNamespace( "xsi", XSINS );
-            writer.writeAttribute( XSINS, "schemaLocation", OWS_NS + " " + OWS_SCHEMA );
-            writer.writeAttribute( "version", "1.1.0" );
-            writer.writeStartElement( OWS_NS, "Exception" );
-            writer.writeAttribute( "exceptionCode", "NoApplicableCode" );         
-            writer.writeStartElement( OWS_NS, "ExceptionText" );
-            writer.writeCharacters( ex.getMessage() != null ? ex.getMessage() : "not available" );
+            writer.writeStartElement("ows", "ExceptionReport", OWS_NS);
+            writer.writeNamespace("ows", OWS_NS);
+            writer.writeNamespace("xsi", XSINS);
+            writer.writeAttribute(XSINS, "schemaLocation", OWS_NS + " "
+                    + OWS_SCHEMA);
+            writer.writeAttribute("version", "1.1.0");
+            writer.writeStartElement(OWS_NS, "Exception");
+            writer.writeAttribute("exceptionCode", "NoApplicableCode");
+            writer.writeStartElement(OWS_NS, "ExceptionText");
+            writer.writeCharacters(ex.getMessage() != null ? ex.getMessage()
+                    : "not available");
             writer.writeEndElement();
             writer.writeEndElement(); // Exception
             writer.writeEndElement(); // ExceptionReport
         }
     }
 
-    protected class FeatureCollectionWriter {
+    protected static class FeatureCollectionWriter {
 
         private XMLStreamWriter xmlStream;
         private QName responseContainerEl;
@@ -173,14 +176,24 @@ public class GmlGetFeatureHandler extends AbstractGmlRequestHandler {
         private QName memberElementName;
         private GMLVersion gmlVersion;
         boolean written = false;
-        
-        
+
+        protected String getTimestamp() {
+            DateTime dateTime = getCurrentDateTimeWithoutMilliseconds();
+            return ISO8601Converter.formatDateTime(dateTime);
+        }
+
+        protected DateTime getCurrentDateTimeWithoutMilliseconds() {
+            long msSince1970 = new Date().getTime();
+            msSince1970 = msSince1970 / 1000 * 1000;
+            return new DateTime(new Date(msSince1970), GMT);
+        }
 
         public boolean isWritten() {
             return written;
         }
-        
-        protected void serializeStreamException(Throwable e) throws XMLStreamException {
+
+        protected void serializeStreamException(Throwable e)
+                throws XMLStreamException {
             OWS100_110_ExceptionReportSerializer exser = new OWS100_110_ExceptionReportSerializer();
             exser.serializeExceptionToXML(xmlStream, e);
         }
@@ -296,10 +309,6 @@ public class GmlGetFeatureHandler extends AbstractGmlRequestHandler {
 
         }
     }
-    
-    
-    
-    
 
     /**
      * Performs the given {@link GetFeature} request.
@@ -385,9 +394,9 @@ public class GmlGetFeatureHandler extends AbstractGmlRequestHandler {
 
         boolean isGetFeatureById = isGetFeatureByIdRequest(request);
 
-        featureCollectionWriter = new FeatureCollectionWriter(xmlStream,
-                gmlVersion, responseContainerEl, memberElementName, request,
-                lock, isGetFeatureById);
+        FeatureCollectionWriter featureCollectionWriter = new FeatureCollectionWriter(
+                xmlStream, gmlVersion, responseContainerEl, memberElementName,
+                request, lock, isGetFeatureById);
 
         GmlXlinkOptions resolveOptions = new GmlXlinkOptions(
                 request.getResolveParams());
@@ -435,23 +444,24 @@ public class GmlGetFeatureHandler extends AbstractGmlRequestHandler {
             } else {
                 // featureCollectionWriter.writeBeginIfNeedBe(); -> POSTPONED TO
                 // ENABLE TIDY OUTPUT FOR FILTEREVALUATION EXCEPTIONS
-                writeFeatureMembersStream(request.getVersion(), gmlStream,
-                        analyzer, gmlVersion, returnMaxFeatures, startIndex,
-                        memberElementName, lock);
+                writeFeatureMembersStream(featureCollectionWriter,
+                        request.getVersion(), gmlStream, analyzer, gmlVersion,
+                        returnMaxFeatures, startIndex, memberElementName, lock);
 
                 // emptyresult handling
                 featureCollectionWriter.writeBeginIfNeedBe();
             }
-        } catch ( FeatureStoreException fex ) {
+        } catch (FeatureStoreException fex) {
+            
             if( featureCollectionWriter.isWritten() ) {
-                featureCollectionWriter.serializeStreamException(fex);
+                featureCollectionWriter.serializeStreamException(fex); 
             } else {
                 throw fex;
             }
-            
-        } catch ( FilterEvaluationException fex ) {
+
+        } catch (FilterEvaluationException fex) {
             if( featureCollectionWriter.isWritten() ) {
-                featureCollectionWriter.serializeStreamException(fex);
+               featureCollectionWriter.serializeStreamException(fex); 
             } else {
                 throw fex;
             }
@@ -475,7 +485,6 @@ public class GmlGetFeatureHandler extends AbstractGmlRequestHandler {
                     }
                 }
 
-               
             }
             featureCollectionWriter.writeEnd();
         }
@@ -596,13 +605,14 @@ public class GmlGetFeatureHandler extends AbstractGmlRequestHandler {
         xmlStream.flush();
     }
 
-    private void writeFeatureMembersStream(Version wfsVersion,
-            GMLStreamWriter gmlStream, QueryAnalyzer analyzer,
-            GMLVersion outputFormat, int maxFeatures, int startIndex,
-            QName featureMemberEl, Lock lock) throws XMLStreamException,
-            UnknownCRSException, TransformationException,
-            FeatureStoreException, FilterEvaluationException,
-            FactoryConfigurationError {
+    private void writeFeatureMembersStream(
+            FeatureCollectionWriter featureCollectionWriter,
+            Version wfsVersion, GMLStreamWriter gmlStream,
+            QueryAnalyzer analyzer, GMLVersion outputFormat, int maxFeatures,
+            int startIndex, QName featureMemberEl, Lock lock)
+            throws XMLStreamException, UnknownCRSException,
+            TransformationException, FeatureStoreException,
+            FilterEvaluationException, FactoryConfigurationError {
 
         XMLStreamWriter xmlStream = gmlStream.getXMLStream();
 

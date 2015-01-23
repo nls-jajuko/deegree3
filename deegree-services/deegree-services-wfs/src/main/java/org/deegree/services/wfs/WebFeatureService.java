@@ -879,7 +879,7 @@ public class WebFeatureService extends AbstractOWS {
      * @throws XMLStreamException
      * @throws IOException
      */
-    public static XMLStreamWriter getXMLResponseWriter( HttpResponseBuffer writer, String mimeType,
+    public static synchronized XMLStreamWriter getXMLResponseWriter( HttpResponseBuffer writer, String mimeType,
                                                         String schemaLocation )
                             throws XMLStreamException, IOException {
 

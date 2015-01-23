@@ -228,7 +228,7 @@ public class HttpResponseBuffer extends HttpServletResponseWrapper {
      * @throws IOException
      * @throws XMLStreamException
      */
-    public XMLStreamWriter getXMLWriter( boolean setCharacterEncoding )
+    public synchronized XMLStreamWriter getXMLWriter( boolean setCharacterEncoding )
                             throws IOException, XMLStreamException {
 
         if ( xmlWriter == null ) {

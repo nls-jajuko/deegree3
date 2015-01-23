@@ -229,7 +229,7 @@ public class BufferableXMLStreamWriter implements XMLStreamWriter {
         return reader;
     }
 
-    public void activateBuffering()
+    public synchronized void  activateBuffering()
                             throws XMLStreamException {
         if ( activeWriter == sink ) {
             LOG.debug( "Switching to buffered XMLStreamWriter, openElements: " + openElements );
